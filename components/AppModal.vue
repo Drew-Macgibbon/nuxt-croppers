@@ -1,8 +1,8 @@
 <template>
   <div>
-    <UButton @click="isOpen = true"> {{ title }}</UButton>
+    <slot name="button" v-bind="options" />
     <UModal v-model="isOpen">
-      <slot />
+      <slot name="modal" />
     </UModal>
   </div>
 </template>
@@ -10,11 +10,13 @@
 <script setup lang="ts">
 const isOpen = ref(false);
 
-defineProps({
-  title: {
-    type: String,
-    required: true,
-  },
+const toggleModalOpen = () => {
+  isOpen.value = !isOpen.value;
+};
+
+const options = ref({
+  isOpen,
+  toggleModalOpen,
 });
 </script>
 
