@@ -18,7 +18,7 @@ export interface CropperConfig {
   stencilProps: {
     handlers?: Record<string, any>;
     movable: boolean;
-    resizable: boolean;
+    resizable?: boolean;
     aspectRatio?: number;
   };
 }

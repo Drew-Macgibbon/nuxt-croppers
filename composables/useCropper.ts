@@ -1,5 +1,5 @@
 import type { CropperConfigTypes, CropperConfig } from "~/types/cropper";
-import type { Cropper } from "vue-advanced-cropper";
+import type { CropperResult } from "vue-advanced-cropper";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -21,9 +21,9 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
     },
   });
 
-  // Configs
+  // Configs (probably extract this)
   const activeConfig = ref<CropperConfigTypes>(initialConfig || "default");
-  const cropperConfigs = {
+  const cropperConfigs: Record<CropperConfigTypes, CropperConfig> = {
     default: {
       name: "Default",
       minWidth: 160,
@@ -40,9 +40,9 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
       },
       stencilProps: {
         movable: true,
-        resizable: false,
+        aspectRatio: 1,
       },
-    } as CropperConfig,
+    },
     avatar: {
       name: "avatar",
       minHeight: 160,
@@ -55,7 +55,7 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
         aspectRatio: 1,
         movable: true,
       },
-    } as CropperConfig,
+    },
     cover: {
       name: "cover",
       minWidth: 1300,
@@ -70,34 +70,31 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
       },
       stencilProps: {
         movable: true,
-        resizable: true,
       },
-    } as CropperConfig,
+    },
   };
 
-  // Utility function to read file as data URL
+  // Utility functions
   function readFileAsDataURL(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
       reader.onerror = () => reject(reader.error);
       reader.onerror = () =>
-        reject(
-          new Error("Failed to read the file as a data URL:", reader.error)
-        );
+        reject(new Error(`Failed to read the file: ${reader.error?.message}`));
 
       reader.readAsDataURL(file);
     });
   }
 
-  const fileSizeOk = (fileSize: number) => {
+  function validateFileSize(fileSize: number): boolean {
     if (fileSize > MAX_FILE_SIZE) {
       errorMessage.value =
         "File is too large. Please select a file smaller than 5MB.";
       return false;
     }
     return true;
-  };
+  }
 
   async function handleFileChange(e: Event, toggleModalOpen: () => void) {
     const input = e.target as HTMLInputElement;
@@ -106,38 +103,39 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
 
     const file = input.files[0];
 
-    if (!fileSizeOk(file.size)) return;
+    if (!validateFileSize(file.size)) return;
 
     try {
       image.value = await readFileAsDataURL(file);
       toggleModalOpen();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error reading file:", error);
-      errorMessage.value = "An error occurred while reading the file.";
+      errorMessage.value = `An error occurred while reading the file: ${error.message}`;
     }
   }
 
-  // image cropping
+  function detectMimeType(imageSrc: string): string {
+    const matches = imageSrc.match(/^data:(.+);base64,/);
+    return matches && matches[1] ? matches[1] : "image/jpeg";
+  }
+
+  // image functions
   const crop = (cropper) => {
-    // We can access the cropper instance using the ref
-    console.log("cropper", cropper);
     if (!cropper) return;
 
-    const { canvas, image } = cropper.getResult();
+    const { canvas, image }: CropperResult = cropper.getResult();
+    if (!canvas || !image.src) return;
 
-    let mimeType = "image/jpeg"; // Default to JPEG if MIME type can't be determined
-    const matches = image.src.match(/^data:(.+);base64,/);
-
-    if (matches && matches[1]) {
-      mimeType = matches[1];
-    }
-    console.log("cropTest", mimeType);
+    const mimeType = detectMimeType(image.src);
     croppedImage.value = canvas.toDataURL(mimeType);
-    // do something with the result
+
+    // probably send to the server for processing
   };
 
-  function onChange({ coordinates, image, canvas }) {
-    // we have access to the data in real time as the user moves the stencil
+  function onChange({ coordinates, image, canvas }: CropperResult) {
+    // realtime changes in the cropper
+    if (!coordinates || !image) return;
+
     result.coordinates = coordinates;
     result.image = image;
   }
