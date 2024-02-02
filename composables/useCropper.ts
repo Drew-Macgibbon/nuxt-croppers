@@ -111,6 +111,9 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
     } catch (error: any) {
       console.error("Error reading file:", error);
       errorMessage.value = `An error occurred while reading the file: ${error.message}`;
+    } finally {
+      // Handle same file selected again
+      if (input) input.value = "";
     }
   }
 
