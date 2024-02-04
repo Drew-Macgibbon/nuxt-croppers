@@ -10,6 +10,7 @@
         :min-height="config.minHeight"
         :canvas="config.canvas"
         :stencil-props="config.stencilProps"
+        :debounce="false"
         @change="onChange"
         @error="setError('error loading image')"
       />
