@@ -28,15 +28,13 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
       name: "Default",
       minWidth: 160,
       minHeight: 160,
-      // maxWidth: 320, if you want to set a max width/height, but it's probably better to resize the image after cropping
-      // maxHeight: 320,
       canvas: {
         width: 320,
         height: 320,
-      },
-      stencilSize: {
-        width: 320,
-        height: 320,
+        minHeight: 0,
+        minWidth: 0,
+        maxHeight: 480,
+        maxWidth: 480,
       },
       stencilProps: {
         movable: true,
@@ -48,8 +46,10 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
       minHeight: 160,
       minWidth: 160,
       canvas: {
-        width: 640,
-        height: 640,
+        minHeight: 0,
+        minWidth: 0,
+        maxHeight: 480,
+        maxWidth: 480,
       },
       stencilProps: {
         aspectRatio: 1,
@@ -61,14 +61,13 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
       minWidth: 1300,
       minHeight: 400,
       canvas: {
-        width: 2600,
-        height: 800,
-      },
-      stencilSize: {
-        width: 1300,
-        height: 400,
+        minHeight: 0,
+        minWidth: 0,
+        maxHeight: 3900,
+        maxWidth: 3900,
       },
       stencilProps: {
+        aspectRatio: 3.25,
         movable: true,
       },
     },
@@ -122,17 +121,68 @@ export default function useCropper(initialConfig?: CropperConfigTypes) {
     return matches && matches[1] ? matches[1] : "image/jpeg";
   }
 
+  // check_webp_feature:
+  //   'feature' can be one of 'lossy', 'lossless', 'alpha' or 'animation'.
+  //   'callback(feature, result)' will be passed back the detection result (in an asynchronous way!)
+  // check_webp_feature:
+  //   'feature' can be one of 'lossy', 'lossless', 'alpha' or 'animation'.
+  //   'callback(feature, result)' will be passed back the detection result (in an asynchronous way!)
+  async function check_webp_feature(feature): Promise<boolean> {
+    return new Promise((resolve) => {
+      const kTestImages = {
+        lossy: "UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA",
+        lossless: "UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==",
+        alpha:
+          "UklGRkoAAABXRUJQVlA4WAoAAAAQAAAAAAAAAAAAQUxQSAwAAAARBxAR/Q9ERP8DAABWUDggGAAAABQBAJ0BKgEAAQAAAP4AAA3AAP7mtQAAAA==",
+        animation:
+          "UklGRlIAAABXRUJQVlA4WAoAAAASAAAAAAAAAAAAQU5JTQYAAAD/////AABBTk1GJgAAAAAAAAAAAAAAAAAAAGQAAABWUDhMDQAAAC8AAAAQBxAREYiI/gcA",
+      };
+
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = "data:image/webp;base64," + kTestImages[feature];
+    });
+  }
   // image functions
-  const crop = (cropper) => {
+  const crop = async (cropper) => {
     if (!cropper) return;
 
-    const { canvas, image }: CropperResult = cropper.getResult();
-    if (!canvas || !image.src) return;
+    const { canvas } = cropper.getResult();
+    if (!canvas) return;
 
-    const mimeType = detectMimeType(image.src);
-    croppedImage.value = canvas.toDataURL(mimeType);
+    let webpSupport = false;
+    for (let feature of ["lossy", "lossless", "alpha", "animation"]) {
+      const result = await check_webp_feature(feature);
+      console.log(feature + " result: ", result);
+      if (result) {
+        webpSupport = true;
+        break; // Found support, no need to check further
+      }
+    }
 
-    // probably send to the server for processing
+    const exportMimeType = webpSupport ? "image/webp" : "image/jpeg";
+    console.log(
+      "WebP support:",
+      webpSupport,
+      "Export MIME type:",
+      exportMimeType
+    );
+
+    canvas.toBlob(
+      (blob) => {
+        const newImg = document.createElement("img");
+        const url = URL.createObjectURL(blob);
+        newImg.onload = () => {
+          URL.revokeObjectURL(url); // Clean up
+        };
+        newImg.src = url;
+        document.body.appendChild(newImg);
+        // here we would send to the server
+      },
+      exportMimeType,
+      1
+    );
   };
 
   function onChange({ coordinates, image, canvas }: CropperResult) {

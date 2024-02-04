@@ -6,10 +6,7 @@
         :src="image"
         :min-width="config.minWidth"
         :min-height="config.minHeight"
-        :max-width="config.maxWidth"
-        :max-height="config.maxHeight"
         :canvas="config.canvas"
-        :stencil-size="config.stencilSize"
         :stencil-props="config.stencilProps"
         @change="onChange"
       />
