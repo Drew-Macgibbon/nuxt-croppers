@@ -1,5 +1,7 @@
 <template>
   <div class="w-full h-full space-y-4 p-4">
+    <div v-if="errorMessage" class="text-red-500">{{ errorMessage }}</div>
+
     <div class="relative w-full h-full space-y-4">
       <Cropper
         ref="cropper"
@@ -9,6 +11,7 @@
         :canvas="config.canvas"
         :stencil-props="config.stencilProps"
         @change="onChange"
+        @error="setError('error loading image')"
       />
       <div>
         <Preview
@@ -35,10 +38,10 @@ import type { CropperResult } from "vue-advanced-cropper";
 import { Cropper, Preview } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
 
-
-//
+// Data
 const cropper = ref(null as typeof Cropper | null);
 const croppedImage = ref(null as string | null);
+const errorMessage = ref<string>("");
 
 const result = reactive({
   image: null,
@@ -138,7 +141,6 @@ const cropperConfigs: Record<CropperConfigTypes, CropperConfig> = {
   },
 };
 
-
 // Checks & Utils
 type Compression = "lossy" | "lossless" | "alpha" | "animation";
 
@@ -212,6 +214,12 @@ function onChange({ coordinates, image, canvas }: CropperResult) {
   result.coordinates = coordinates;
   result.image = image;
 }
+
+// Errors
+const setError = (error: string) => {
+  // probably a notification
+  errorMessage.value = error;
+};
 </script>
 
 <style scoped></style>

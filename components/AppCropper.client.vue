@@ -56,12 +56,14 @@ async function checkImageDimensions(
       if (img.width >= minWidth && img.height >= minHeight) {
         resolve(true);
       } else {
-        errorMessage.value = `Image dimensions must be at least ${minWidth}x${minHeight}px for ${cropperType}.`;
+        setError(
+          `Image dimensions must be at least ${minWidth}x${minHeight}px for ${cropperType}.`
+        );
         resolve(false);
       }
     };
     img.onerror = () => {
-      errorMessage.value = "Failed to load image for dimension check.";
+      setError("Failed to load image for dimension check.");
       resolve(false);
     };
     img.src = imageSrc;
@@ -82,8 +84,7 @@ function readFileAsDataURL(file: File): Promise<string> {
 
 function validateFileSize(fileSize: number): boolean {
   if (fileSize > MAX_FILE_SIZE) {
-    errorMessage.value =
-      "File is too large. Please select a file smaller than 5MB.";
+    setError("File is too large. Please select a file smaller than 5MB.");
     return false;
   }
   return true;
@@ -103,12 +104,19 @@ async function handleFileChange(e: Event, toggleModalOpen: () => void) {
     if (!(await checkImageDimensions(image.value, props.cropperType))) return;
     toggleModalOpen();
   } catch (error: any) {
-    errorMessage.value = `An error occurred while reading the file: ${error.message}`;
+    setError(`An error occurred while reading the file: ${error.message}`);
   } finally {
     // reset the input value
     if (input) input.value = "";
   }
 }
+
+// Errors
+const setError = (error: string) => {
+  // probably a notification
+  errorMessage.value = error;
+};
+
 </script>
 
 <style scoped></style>
