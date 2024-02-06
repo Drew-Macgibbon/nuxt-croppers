@@ -75,8 +75,10 @@ function readFileAsDataURL(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(reader.error);
-    reader.onerror = () =>
+    reader.onerror = () => {
+      setError(`Failed to read the file: ${reader.error?.message}`);
       reject(new Error(`Failed to read the file: ${reader.error?.message}`));
+    };
 
     reader.readAsDataURL(file);
   });
@@ -116,7 +118,6 @@ const setError = (error: string) => {
   // probably a notification
   errorMessage.value = error;
 };
-
 </script>
 
 <style scoped></style>

@@ -17,45 +17,23 @@
       <div>
         <Preview
           class="rounded-md"
-          v-if="result.image && config.minWidth"
+          v-if="preview.image && config.minWidth"
           :width="Math.floor(config.minWidth / 3)"
           :height="Math.floor(config.minHeight / 3)"
-          :image="result.image"
-          :coordinates="result.coordinates"
+          :image="preview.image"
+          :coordinates="preview.coordinates"
         />
-        <p v-if="croppedImage">
-          {{ croppedImage }}
-        </p>
-        <NuxtImg v-if="croppedImage" :src="croppedImage" />
       </div>
     </div>
-    <UButton @click="crop(cropper)"> Crop </UButton>
+    <UButton @click="crop"> Crop </UButton>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { CropperConfigTypes } from "~/types/cropper";
-import type { CropperResult } from "vue-advanced-cropper";
+import type { CropperResult, ImageTransforms } from "vue-advanced-cropper";
 import { Cropper, Preview } from "vue-advanced-cropper";
 import "vue-advanced-cropper/dist/style.css";
-
-// Data
-const cropper = ref(null as typeof Cropper | null);
-const croppedImage = ref(null as string | null);
-const errorMessage = ref<string>("");
-
-const result = reactive({
-  image: null,
-  blob: null,
-  coordinates: {
-    left: 0,
-    top: 0,
-    width: 0,
-    height: 0,
-  },
-});
-
-const config = computed(() => cropperConfigs[props.cropperType]);
 
 const props = defineProps({
   image: {
@@ -69,6 +47,7 @@ const props = defineProps({
 });
 
 // Configs
+const config = computed(() => cropperConfigs[props.cropperType]);
 export interface CropperConfig {
   name: string;
   minHeight: number;
@@ -163,9 +142,29 @@ async function checkWebpFeature(feature: Compression): Promise<boolean> {
   });
 }
 
+const webpSupport = ref(false);
+onMounted(async () => {
+  for (let feature of [
+    "lossy",
+    "lossless",
+    "alpha",
+    "animation",
+  ] as Compression[]) {
+    const result = await checkWebpFeature(feature);
+    if (result) {
+      webpSupport.value = true;
+      break;
+    }
+  }
+});
+
 function convertImage(canvas: HTMLCanvasElement, mimeType: string) {
   canvas.toBlob(
     (blob) => {
+      if (!blob) {
+        setError("Failed to convert canvas to blob.");
+        return;
+      }
       // load image for testing
       const newImg = document.createElement("img");
       const url = URL.createObjectURL(blob);
@@ -183,40 +182,54 @@ function convertImage(canvas: HTMLCanvasElement, mimeType: string) {
 }
 
 // Cropper
-const crop = async (cropper) => {
-  if (!cropper) return;
-
-  const { canvas } = cropper.getResult();
-  if (!canvas) return;
-
-  let webpSupport = false;
-  for (let feature of [
-    "lossy",
-    "lossless",
-    "alpha",
-    "animation",
-  ] as Compression[]) {
-    const result = await checkWebpFeature(feature);
-    if (result) {
-      webpSupport = true;
-      break;
-    }
+const cropper = ref(null as typeof Cropper | null);
+const crop = async () => {
+  if (!cropper.value) {
+    setError("No cropper instance in crop function.");
+    return;
   }
 
-  const exportMimeType = webpSupport ? "image/webp" : "image/jpeg";
+  const { canvas } = cropper.value.getResult();
+  if (!canvas) {
+    setError("Cropper failed to get canvas");
+    return;
+  }
+
+  const exportMimeType = webpSupport.value ? "image/webp" : "image/jpeg";
 
   convertImage(canvas, exportMimeType);
 };
 
+const preview = reactive<CropperResult>({
+  image: {
+    width: 0,
+    height: 0,
+    transforms: {} as ImageTransforms,
+    src: null,
+  },
+  visibleArea: {
+    width: 0,
+    height: 0,
+    left: 0,
+    top: 0,
+  },
+  coordinates: {
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0,
+  },
+});
 function onChange({ coordinates, image, canvas }: CropperResult) {
   // realtime changes in the cropper
   if (!coordinates || !image) return;
 
-  result.coordinates = coordinates;
-  result.image = image;
+  preview.coordinates = coordinates;
+  preview.image = image;
 }
 
 // Errors
+const errorMessage = ref<string>("");
 const setError = (error: string) => {
   // probably a notification
   errorMessage.value = error;
